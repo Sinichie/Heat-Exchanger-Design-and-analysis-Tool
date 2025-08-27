@@ -1,0 +1,993 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Heat Exchanger Design & Analysis Tool</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        html, body {
+            color: rgb(44, 44, 44);
+            font-size: 100%;
+            margin: auto;
+            width: 100%;
+            height: 100%;
+        }
+        
+        table input, table select {
+            width: 90%;
+            margin: 2px;
+        }
+        
+        .result-box {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            border-left: 4px solid #0d6efd;
+        }
+        
+        .input-group {
+            margin-bottom: 10px;
+        }
+        
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        
+        .card {
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .nav-tabs .nav-link {
+            font-weight: 500;
+        }
+        
+        .btn {
+            margin: 5px;
+        }
+        
+        .method-description {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div style="margin-left: 4%; margin-right: 4%; text-align: center;">
+        
+        <div style="text-align: left; margin: 3%;">
+            <h2>Heat Exchanger Design & Analysis Tool</h2>
+            <p><em>Complete thermal design with LMTD, Effectiveness-NTU, Kern Method, Fin Analysis, and Performance Evaluation</em></p>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <nav style="text-align: left; margin: 3%;">
+            <div class="nav nav-tabs" id="nav-tab" role="tablist">
+                <button class="nav-link active" id="nav-overview-tab" data-bs-toggle="tab" data-bs-target="#nav-overview" type="button">Overview</button>
+                <button class="nav-link" id="nav-lmtd-tab" data-bs-toggle="tab" data-bs-target="#nav-lmtd" type="button">LMTD Method</button>
+                <button class="nav-link" id="nav-ntu-tab" data-bs-toggle="tab" data-bs-target="#nav-ntu" type="button">Effectiveness-NTU</button>
+                <button class="nav-link" id="nav-kern-tab" data-bs-toggle="tab" data-bs-target="#nav-kern" type="button">Kern Method</button>
+                <button class="nav-link" id="nav-fins-tab" data-bs-toggle="tab" data-bs-target="#nav-fins" type="button">Fin Analysis</button>
+                <button class="nav-link" id="nav-performance-tab" data-bs-toggle="tab" data-bs-target="#nav-performance" type="button">Performance</button>
+            </div>
+        </nav>
+
+        <!-- Tab Content -->
+        <div class="tab-content" id="nav-tabContent">
+
+            <!-- Overview Tab -->
+            <div class="tab-pane fade show active" id="nav-overview" role="tabpanel">
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title">Heat Exchanger Design Methods</h5>
+                                <p class="card-text">
+                                    This tool provides comprehensive analysis using multiple proven methods:
+                                </p>
+                                
+                                <div class="method-description">
+                                    <h6><strong>LMTD Method (Log Mean Temperature Difference)</strong></h6>
+                                    <p>Used when inlet and outlet temperatures are known. Calculates required heat transfer area using: Q = U × A × LMTD</p>
+                                </div>
+                                
+                                <div class="method-description">
+                                    <h6><strong>Effectiveness-NTU Method</strong></h6>
+                                    <p>Used when outlet temperatures are unknown. Based on heat exchanger effectiveness and Number of Transfer Units (NTU = UA/Cmin)</p>
+                                </div>
+                                
+                                <div class="method-description">
+                                    <h6><strong>Kern Method</strong></h6>
+                                    <p>Simplified approach for shell-and-tube heat exchanger design using correlations for heat transfer coefficients and pressure drops</p>
+                                </div>
+                                
+                                <div class="method-description">
+                                    <h6><strong>Fin Analysis</strong></h6>
+                                    <p>Extended surface heat transfer analysis for rectangular, triangular, and pin fins with efficiency and effectiveness calculations</p>
+                                </div>
+                                
+                                <button type="button" class="btn btn-success" onclick="loadExampleData()">Load Example Data</button>
+                                <button type="button" class="btn btn-primary" onclick="runCompleteAnalysis()">Run Complete Analysis</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div id="overviewPlot" style="height: 400px;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- LMTD Method Tab -->
+            <div class="tab-pane fade" id="nav-lmtd" role="tabpanel">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h4>LMTD Method</h4>
+                        <p><strong>Theory:</strong> LMTD = (ΔT₁ - ΔT₂) / ln(ΔT₁/ΔT₂)<br>
+                        Where ΔT₁ and ΔT₂ are temperature differences at each end</p>
+                        
+                        <table class="table table-bordered">
+                            <tr>
+                                <th colspan="2">Hot Fluid</th>
+                                <th colspan="2">Cold Fluid</th>
+                            </tr>
+                            <tr>
+                                <td>Inlet Temp (°C)</td>
+                                <td><input type="number" id="lmtd_ThIn" value="80"></td>
+                                <td>Inlet Temp (°C)</td>
+                                <td><input type="number" id="lmtd_TcIn" value="20"></td>
+                            </tr>
+                            <tr>
+                                <td>Outlet Temp (°C)</td>
+                                <td><input type="number" id="lmtd_ThOut" value="60"></td>
+                                <td>Outlet Temp (°C)</td>
+                                <td><input type="number" id="lmtd_TcOut" value="40"></td>
+                            </tr>
+                            <tr>
+                                <td>Mass Flow (kg/s)</td>
+                                <td><input type="number" id="lmtd_mh" value="2"></td>
+                                <td>Mass Flow (kg/s)</td>
+                                <td><input type="number" id="lmtd_mc" value="1.5"></td>
+                            </tr>
+                            <tr>
+                                <td>Cp (J/kg·K)</td>
+                                <td><input type="number" id="lmtd_Cph" value="4180"></td>
+                                <td>Cp (J/kg·K)</td>
+                                <td><input type="number" id="lmtd_Cpc" value="4180"></td>
+                            </tr>
+                        </table>
+                        
+                        <table class="table table-bordered">
+                            <tr>
+                                <td>Overall HTC (W/m²·K)</td>
+                                <td><input type="number" id="lmtd_U" value="1000"></td>
+                            </tr>
+                            <tr>
+                                <td>Flow Configuration</td>
+                                <td>
+                                    <select id="lmtd_config">
+                                        <option value="parallel">Parallel Flow</option>
+                                        <option value="counter">Counter Flow</option>
+                                        <option value="shell">Shell & Tube (1-2)</option>
+                                    </select>
+                                </td>
+                            </tr>
+                        </table>
+                        
+                        <button type="button" class="btn btn-primary" onclick="calculateLMTD()">Calculate LMTD</button>
+                    </div>
+                    <div class="col-md-6">
+                        <div id="lmtdPlot" style="height: 400px;"></div>
+                        <div id="lmtdResults" class="result-box" style="display: none;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Effectiveness-NTU Tab -->
+            <div class="tab-pane fade" id="nav-ntu" role="tabpanel">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h4>Effectiveness-NTU Method</h4>
+                        <p><strong>Theory:</strong> ε = Q_actual / Q_max, NTU = UA / C_min<br>
+                        Used when outlet temperatures are unknown</p>
+                        
+                        <table class="table table-bordered">
+                            <tr>
+                                <th colspan="2">Inlet Conditions</th>
+                                <th colspan="2">Flow Properties</th>
+                            </tr>
+                            <tr>
+                                <td>Hot Inlet Temp (°C)</td>
+                                <td><input type="number" id="ntu_ThIn" value="80"></td>
+                                <td>Hot Mass Flow (kg/s)</td>
+                                <td><input type="number" id="ntu_mh" value="2"></td>
+                            </tr>
+                            <tr>
+                                <td>Cold Inlet Temp (°C)</td>
+                                <td><input type="number" id="ntu_TcIn" value="20"></td>
+                                <td>Cold Mass Flow (kg/s)</td>
+                                <td><input type="number" id="ntu_mc" value="1.5"></td>
+                            </tr>
+                            <tr>
+                                <td>Hot Cp (J/kg·K)</td>
+                                <td><input type="number" id="ntu_Cph" value="4180"></td>
+                                <td>Cold Cp (J/kg·K)</td>
+                                <td><input type="number" id="ntu_Cpc" value="4180"></td>
+                            </tr>
+                        </table>
+                        
+                        <table class="table table-bordered">
+                            <tr>
+                                <td>Overall HTC (W/m²·K)</td>
+                                <td><input type="number" id="ntu_U" value="1000"></td>
+                            </tr>
+                            <tr>
+                                <td>Heat Transfer Area (m²)</td>
+                                <td><input type="number" id="ntu_A" value="10"></td>
+                            </tr>
+                            <tr>
+                                <td>Flow Configuration</td>
+                                <td>
+                                    <select id="ntu_config">
+                                        <option value="parallel">Parallel Flow</option>
+                                        <option value="counter">Counter Flow</option>
+                                        <option value="crossflow">Cross Flow</option>
+                                    </select>
+                                </td>
+                            </tr>
+                        </table>
+                        
+                        <button type="button" class="btn btn-primary" onclick="calculateNTU()">Calculate Effectiveness</button>
+                    </div>
+                    <div class="col-md-6">
+                        <div id="ntuPlot" style="height: 400px;"></div>
+                        <div id="ntuResults" class="result-box" style="display: none;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Kern Method Tab -->
+            <div class="tab-pane fade" id="nav-kern" role="tabpanel">
+                <div class="row">
+                    <div class="col-md-8">
+                        <h4>Shell & Tube Heat Exchanger - Kern Method</h4>
+                        <p><strong>Theory:</strong> Simplified correlations for heat transfer coefficients:<br>
+                        Tube side: Nu = 0.023 Re⁰·⁸ Pr⁰·⁴<br>
+                        Shell side: Nu = 0.36 Re⁰·⁵⁵ Pr¹/³</p>
+                        
+                        <div class="row">
+                            <div class="col-md-4">
+                                <table class="table table-bordered">
+                                    <tr><th colspan="2">Tube Side</th></tr>
+                                    <tr><td>Flow Rate (kg/s)</td><td><input type="number" id="kern_tube_flow" value="10"></td></tr>
+                                    <tr><td>Inlet Temp (°C)</td><td><input type="number" id="kern_tube_tin" value="30"></td></tr>
+                                    <tr><td>Outlet Temp (°C)</td><td><input type="number" id="kern_tube_tout" value="60"></td></tr>
+                                    <tr><td>Density (kg/m³)</td><td><input type="number" id="kern_tube_rho" value="995"></td></tr>
+                                    <tr><td>Viscosity (Pa·s)</td><td><input type="number" id="kern_tube_mu" value="0.0008" step="0.0001"></td></tr>
+                                    <tr><td>Cp (J/kg·K)</td><td><input type="number" id="kern_tube_cp" value="4180"></td></tr>
+                                    <tr><td>Thermal Cond. (W/m·K)</td><td><input type="number" id="kern_tube_k" value="0.6" step="0.1"></td></tr>
+                                </table>
+                            </div>
+                            <div class="col-md-4">
+                                <table class="table table-bordered">
+                                    <tr><th colspan="2">Shell Side</th></tr>
+                                    <tr><td>Flow Rate (kg/s)</td><td><input type="number" id="kern_shell_flow" value="15"></td></tr>
+                                    <tr><td>Inlet Temp (°C)</td><td><input type="number" id="kern_shell_tin" value="90"></td></tr>
+                                    <tr><td>Outlet Temp (°C)</td><td><input type="number" id="kern_shell_tout" value="50"></td></tr>
+                                    <tr><td>Density (kg/m³)</td><td><input type="number" id="kern_shell_rho" value="985"></td></tr>
+                                    <tr><td>Viscosity (Pa·s)</td><td><input type="number" id="kern_shell_mu" value="0.001" step="0.0001"></td></tr>
+                                    <tr><td>Cp (J/kg·K)</td><td><input type="number" id="kern_shell_cp" value="4000"></td></tr>
+                                    <tr><td>Thermal Cond. (W/m·K)</td><td><input type="number" id="kern_shell_k" value="0.5" step="0.1"></td></tr>
+                                </table>
+                            </div>
+                            <div class="col-md-4">
+                                <table class="table table-bordered">
+                                    <tr><th colspan="2">Geometry</th></tr>
+                                    <tr><td>Tube OD (mm)</td><td><input type="number" id="kern_tube_od" value="20"></td></tr>
+                                    <tr><td>Tube ID (mm)</td><td><input type="number" id="kern_tube_id" value="16"></td></tr>
+                                    <tr><td>Tube Length (m)</td><td><input type="number" id="kern_tube_length" value="5"></td></tr>
+                                    <tr><td>Tube Pitch (mm)</td><td><input type="number" id="kern_tube_pitch" value="25"></td></tr>
+                                    <tr><td>Shell Diameter (mm)</td><td><input type="number" id="kern_shell_dia" value="500"></td></tr>
+                                    <tr><td>Baffle Spacing (mm)</td><td><input type="number" id="kern_baffle_spacing" value="200"></td></tr>
+                                    <tr><td>Number of Passes</td><td><input type="number" id="kern_passes" value="2"></td></tr>
+                                </table>
+                            </div>
+                        </div>
+                        
+                        <button type="button" class="btn btn-primary" onclick="calculateKern()">Calculate using Kern Method</button>
+                    </div>
+                    <div class="col-md-4">
+                        <div id="kernPlot" style="height: 300px;"></div>
+                        <div id="kernResults" class="result-box" style="display: none;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Fin Analysis Tab -->
+            <div class="tab-pane fade" id="nav-fins" role="tabpanel">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h4>Extended Surface (Fin) Analysis</h4>
+                        <p><strong>Theory:</strong> Fin parameter m = √(hP/kAc)<br>
+                        Efficiency η = tanh(mL) / mL<br>
+                        Heat transfer q = √(hPkAc) × (Tb - T∞) × tanh(mL)</p>
+                        
+                        <table class="table table-bordered">
+                            <tr>
+                                <th colspan="2">Thermal Conditions</th>
+                                <th colspan="2">Fin Geometry</th>
+                            </tr>
+                            <tr>
+                                <td>Base Temperature (°C)</td>
+                                <td><input type="number" id="fin_Tbase" value="100"></td>
+                                <td>Length (m)</td>
+                                <td><input type="number" id="fin_length" value="0.1" step="0.001"></td>
+                            </tr>
+                            <tr>
+                                <td>Ambient Temperature (°C)</td>
+                                <td><input type="number" id="fin_Tamb" value="25"></td>
+                                <td>Thickness (m)</td>
+                                <td><input type="number" id="fin_thickness" value="0.005" step="0.001"></td>
+                            </tr>
+                            <tr>
+                                <td>Convection Coeff (W/m²·K)</td>
+                                <td><input type="number" id="fin_h" value="25"></td>
+                                <td>Width (m)</td>
+                                <td><input type="number" id="fin_width" value="0.05" step="0.001"></td>
+                            </tr>
+                            <tr>
+                                <td>Thermal Conductivity (W/m·K)</td>
+                                <td><input type="number" id="fin_k" value="200"></td>
+                                <td>Fin Type</td>
+                                <td>
+                                    <select id="fin_type">
+                                        <option value="rectangular">Rectangular</option>
+                                        <option value="triangular">Triangular</option>
+                                        <option value="pin">Pin Fin (Circular)</option>
+                                    </select>
+                                </td>
+                            </tr>
+                        </table>
+                        
+                        <button type="button" class="btn btn-primary" onclick="calculateFin()">Analyze Fin</button>
+                    </div>
+                    <div class="col-md-6">
+                        <div id="finPlot" style="height: 400px;"></div>
+                        <div id="finResults" class="result-box" style="display: none;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Performance Tab -->
+            <div class="tab-pane fade" id="nav-performance" role="tabpanel">
+                <div class="row">
+                    <div class="col-md-12">
+                        <h4>Performance Analysis & Comparison</h4>
+                        <p><strong>Generates comprehensive performance curves for:</strong><br>
+                        • Effectiveness vs NTU for different configurations<br>
+                        • Fin efficiency comparison<br>
+                        • Heat transfer coefficient effects<br>
+                        • Correction factors for shell-and-tube exchangers</p>
+                        
+                        <button type="button" class="btn btn-primary" onclick="generatePerformance()">Generate Performance Curves</button>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div id="performancePlot1" style="height: 400px;"></div>
+                    </div>
+                    <div class="col-md-6">
+                        <div id="performancePlot2" style="height: 400px;"></div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div id="performancePlot3" style="height: 400px;"></div>
+                    </div>
+                    <div class="col-md-6">
+                        <div id="performancePlot4" style="height: 400px;"></div>
+                    </div>
+                </div>
+                
+                <div id="performanceResults" class="result-box" style="display: none;"></div>
+            </div>
+
+        </div>
+
+        <hr>
+        <footer style="margin-bottom: 10%; text-align: center;">
+            <p>Heat Exchanger Design & Analysis Tool - LMTD, Effectiveness-NTU, Kern Method & Fin Analysis</p>
+        </footer>
+    </div>
+
+    <script>
+        // Global storage for results
+        let calculationResults = {
+            lmtd: null,
+            ntu: null,
+            kern: null,
+            fin: null
+        };
+
+        // Load example data across all methods
+        function loadExampleData() {
+            // LMTD Method
+            document.getElementById("lmtd_ThIn").value = 80;
+            document.getElementById("lmtd_ThOut").value = 60;
+            document.getElementById("lmtd_TcIn").value = 20;
+            document.getElementById("lmtd_TcOut").value = 40;
+            document.getElementById("lmtd_mh").value = 2;
+            document.getElementById("lmtd_mc").value = 1.5;
+            document.getElementById("lmtd_Cph").value = 4180;
+            document.getElementById("lmtd_Cpc").value = 4180;
+            document.getElementById("lmtd_U").value = 1000;
+
+            // NTU Method
+            document.getElementById("ntu_ThIn").value = 80;
+            document.getElementById("ntu_TcIn").value = 20;
+            document.getElementById("ntu_mh").value = 2;
+            document.getElementById("ntu_mc").value = 1.5;
+            document.getElementById("ntu_Cph").value = 4180;
+            document.getElementById("ntu_Cpc").value = 4180;
+            document.getElementById("ntu_U").value = 1000;
+            document.getElementById("ntu_A").value = 10;
+
+            // Kern Method
+            document.getElementById("kern_tube_flow").value = 10;
+            document.getElementById("kern_shell_flow").value = 15;
+            document.getElementById("kern_tube_tin").value = 30;
+            document.getElementById("kern_tube_tout").value = 60;
+            document.getElementById("kern_shell_tin").value = 90;
+            document.getElementById("kern_shell_tout").value = 50;
+            document.getElementById("kern_tube_rho").value = 995;
+            document.getElementById("kern_shell_rho").value = 985;
+            document.getElementById("kern_tube_mu").value = 0.0008;
+            document.getElementById("kern_shell_mu").value = 0.001;
+            document.getElementById("kern_tube_cp").value = 4180;
+            document.getElementById("kern_shell_cp").value = 4000;
+            document.getElementById("kern_tube_k").value = 0.6;
+            document.getElementById("kern_shell_k").value = 0.5;
+            document.getElementById("kern_tube_od").value = 20;
+            document.getElementById("kern_tube_id").value = 16;
+            document.getElementById("kern_tube_length").value = 5;
+            document.getElementById("kern_tube_pitch").value = 25;
+            document.getElementById("kern_shell_dia").value = 500;
+            document.getElementById("kern_baffle_spacing").value = 200;
+            document.getElementById("kern_passes").value = 2;
+
+            // Fin Analysis
+            document.getElementById("fin_Tbase").value = 100;
+            document.getElementById("fin_Tamb").value = 25;
+            document.getElementById("fin_length").value = 0.1;
+            document.getElementById("fin_thickness").value = 0.005;
+            document.getElementById("fin_width").value = 0.05;
+            document.getElementById("fin_k").value = 200;
+            document.getElementById("fin_h").value = 25;
+
+            alert("Example data loaded successfully!");
+            plotOverviewExample();
+        }
+
+        // Run complete analysis
+        function runCompleteAnalysis() {
+            calculateLMTD();
+            calculateNTU();
+            calculateKern();
+            calculateFin();
+            generatePerformance();
+            alert("Complete analysis finished! Check each tab for results.");
+        }
+
+        // Overview plot
+        function plotOverviewExample() {
+            const x = [0, 1, 2, 3, 4, 5];
+            const temp_hot = [80, 75, 70, 65, 62, 60];
+            const temp_cold = [20, 25, 30, 35, 38, 40];
+            
+            const data = [
+                {x: x, y: temp_hot, mode: 'lines+markers', name: 'Hot Fluid', line: {color: 'red'}},
+                {x: x, y: temp_cold, mode: 'lines+markers', name: 'Cold Fluid', line: {color: 'blue'}}
+            ];
+            
+            const layout = {
+                title: 'Example: Temperature Profile in Counter-Flow Heat Exchanger',
+                xaxis: {title: 'Dimensionless Length'},
+                yaxis: {title: 'Temperature (°C)'},
+                margin: {l: 50, r: 50, t: 50, b: 50}
+            };
+            
+            Plotly.newPlot('overviewPlot', data, layout);
+        }
+
+        // Calculate correction factor for shell and tube heat exchangers
+        function calculateCorrectionFactor(P, R) {
+            // Simplified approximation for 1-2 shell and tube exchanger
+            const numerator = Math.sqrt(R * R + 1) * Math.log((1 - P) / (1 - P * R));
+            const denominator = (R - 1) * Math.log((2 - P * (R + 1 - Math.sqrt(R * R + 1))) / 
+                                            (2 - P * (R + 1 + Math.sqrt(R * R + 1))));
+            
+            if (R === 1) {
+                return P / ((1 - P) * Math.log((2 - P * (2 - P)) / (P * P)));
+            }
+            
+            return numerator / denominator;
+        }
+
+        // LMTD Calculation
+        function calculateLMTD() {
+            const ThIn = parseFloat(document.getElementById("lmtd_ThIn").value);
+            const ThOut = parseFloat(document.getElementById("lmtd_ThOut").value);
+            const TcIn = parseFloat(document.getElementById("lmtd_TcIn").value);
+            const TcOut = parseFloat(document.getElementById("lmtd_TcOut").value);
+            const mh = parseFloat(document.getElementById("lmtd_mh").value);
+            const mc = parseFloat(document.getElementById("lmtd_mc").value);
+            const Cph = parseFloat(document.getElementById("lmtd_Cph").value);
+            const Cpc = parseFloat(document.getElementById("lmtd_Cpc").value);
+            const U = parseFloat(document.getElementById("lmtd_U").value);
+            const config = document.getElementById("lmtd_config").value;
+
+            // Heat capacity rates
+            const Ch = mh * Cph;
+            const Cc = mc * Cpc;
+
+            // Heat transfer rates
+            const Qh = Ch * (ThIn - ThOut);
+            const Qc = Cc * (TcOut - TcIn);
+            const Qavg = (Qh + Qc) / 2;
+
+            // Temperature differences
+            const dT1 = config === "parallel" ? ThIn - TcIn : ThIn - TcOut;
+            const dT2 = config === "parallel" ? ThOut - TcOut : ThOut - TcIn;
+
+            // LMTD calculation
+            let LMTD;
+            if (Math.abs(dT1 - dT2) < 0.001) {
+                LMTD = dT1;
+            } else {
+                LMTD = (dT1 - dT2) / Math.log(dT1 / dT2);
+            }
+
+            // Correction factor
+            let F = 1;
+            if (config === "shell") {
+                const P = (TcOut - TcIn) / (ThIn - TcIn);
+                const R = (ThIn - ThOut) / (TcOut - TcIn);
+                F = calculateCorrectionFactor(P, R);
+                LMTD = LMTD * F;
+            }
+
+            // Required area
+            const Area = Qavg / (U * LMTD);
+
+            // Store results
+            calculationResults.lmtd = {
+                Qavg, LMTD, Area, F, ThIn, ThOut, TcIn, TcOut, config
+            };
+
+            // Display results
+            document.getElementById('lmtdResults').style.display = 'block';
+            document.getElementById('lmtdResults').innerHTML = `
+                <strong>LMTD Method Results:</strong><br><br>
+                Heat Transfer Rate: ${Qavg.toFixed(2)} W<br>
+                Log Mean Temperature Difference: ${LMTD.toFixed(2)} °C<br>
+                Correction Factor (F): ${F.toFixed(3)}<br>
+                Required Heat Transfer Area: ${Area.toFixed(4)} m²<br>
+                Hot Fluid Heat Capacity Rate: ${Ch.toFixed(2)} W/K<br>
+                Cold Fluid Heat Capacity Rate: ${Cc.toFixed(2)} W/K
+            `;
+
+            // Plot temperature profile
+            const x = [0, 0.2, 0.4, 0.6, 0.8, 1.0];
+            let hotTemp, coldTemp;
+            
+            if (config === "parallel") {
+                hotTemp = x.map(pos => ThIn - (ThIn - ThOut) * pos);
+                coldTemp = x.map(pos => TcIn + (TcOut - TcIn) * pos);
+            } else {
+                hotTemp = x.map(pos => ThIn - (ThIn - ThOut) * pos);
+                coldTemp = x.map(pos => TcOut - (TcOut - TcIn) * pos);
+            }
+            
+            const data = [
+                {x: x, y: hotTemp, mode: 'lines+markers', name: 'Hot Fluid', line: {color: 'red'}},
+                {x: x, y: coldTemp, mode: 'lines+markers', name: 'Cold Fluid', line: {color: 'blue'}}
+            ];
+            
+            const layout = {
+                title: 'Temperature Profile',
+                xaxis: {title: 'Dimensionless Length'},
+                yaxis: {title: 'Temperature (°C)'}
+            };
+            
+            Plotly.newPlot('lmtdPlot', data, layout);
+        }
+
+        // Effectiveness-NTU Calculation
+        function calculateNTU() {
+            const ThIn = parseFloat(document.getElementById("ntu_ThIn").value);
+            const TcIn = parseFloat(document.getElementById("ntu_TcIn").value);
+            const mh = parseFloat(document.getElementById("ntu_mh").value);
+            const mc = parseFloat(document.getElementById("ntu_mc").value);
+            const Cph = parseFloat(document.getElementById("ntu_Cph").value);
+            const Cpc = parseFloat(document.getElementById("ntu_Cpc").value);
+            const U = parseFloat(document.getElementById("ntu_U").value);
+            const A = parseFloat(document.getElementById("ntu_A").value);
+            const config = document.getElementById("ntu_config").value;
+
+            // Heat capacity rates
+            const Ch = mh * Cph;
+            const Cc = mc * Cpc;
+            const Cmin = Math.min(Ch, Cc);
+            const Cmax = Math.max(Ch, Cc);
+            const Cr = Cmin / Cmax;
+
+            // NTU
+            const NTU = U * A / Cmin;
+
+            // Effectiveness calculation
+            let effectiveness;
+            if (config === "parallel") {
+                effectiveness = (1 - Math.exp(-NTU * (1 + Cr))) / (1 + Cr);
+            } else if (config === "counter") {
+                if (Cr < 1) {
+                    effectiveness = (1 - Math.exp(-NTU * (1 - Cr))) / (1 - Cr * Math.exp(-NTU * (1 - Cr)));
+                } else {
+                    effectiveness = NTU / (1 + NTU);
+                }
+            } else { // crossflow approximation
+                effectiveness = 1 - Math.exp((Math.exp(-NTU * Cr * 0.78) - 1) / (Cr * 0.78));
+            }
+
+            // Heat transfer and outlet temperatures
+            const Qmax = Cmin * (ThIn - TcIn);
+            const Q = effectiveness * Qmax;
+            
+            let ThOut, TcOut;
+            if (Ch === Cmin) {
+                ThOut = ThIn - Q / Ch;
+                TcOut = TcIn + Q / Cc;
+            } else {
+                ThOut = ThIn - Q / Ch;
+                TcOut = TcIn + Q / Cmin;
+            }
+
+            // Store results
+            calculationResults.ntu = {
+                effectiveness, NTU, Q, ThOut, TcOut, Cr
+            };
+
+            // Display results
+            document.getElementById('ntuResults').style.display = 'block';
+            document.getElementById('ntuResults').innerHTML = `
+                <strong>Effectiveness-NTU Method Results:</strong><br><br>
+                Effectiveness (ε): ${effectiveness.toFixed(4)}<br>
+                NTU: ${NTU.toFixed(4)}<br>
+                Heat Capacity Ratio (Cr): ${Cr.toFixed(4)}<br>
+                Heat Transfer Rate: ${Q.toFixed(2)} W<br>
+                Hot Outlet Temperature: ${ThOut.toFixed(2)} °C<br>
+                Cold Outlet Temperature: ${TcOut.toFixed(2)} °C
+            `;
+
+            // Plot effectiveness vs NTU
+            const ntuValues = Array.from({length: 50}, (_, i) => i * 0.2);
+            let effValues;
+            
+            if (config === "parallel") {
+                effValues = ntuValues.map(ntu => (1 - Math.exp(-ntu * (1 + Cr))) / (1 + Cr));
+            } else if (config === "counter") {
+                if (Cr < 1) {
+                    effValues = ntuValues.map(ntu => (1 - Math.exp(-ntu * (1 - Cr))) / (1 - Cr * Math.exp(-ntu * (1 - Cr))));
+                } else {
+                    effValues = ntuValues.map(ntu => ntu / (1 + ntu));
+                }
+            } else {
+                effValues = ntuValues.map(ntu => 1 - Math.exp((Math.exp(-ntu * Cr * 0.78) - 1) / (Cr * 0.78)));
+            }
+            
+            const data = [{
+                x: ntuValues,
+                y: effValues,
+                mode: 'lines',
+                name: `Cr = ${Cr.toFixed(2)}`,
+                line: {color: 'blue'}
+            }];
+            
+            const layout = {
+                title: 'Effectiveness vs NTU',
+                xaxis: {title: 'NTU'},
+                yaxis: {title: 'Effectiveness (ε)', range: [0, 1]}
+            };
+            
+            Plotly.newPlot('ntuPlot', data, layout);
+        }
+
+        // Kern Method Calculation
+        function calculateKern() {
+            // Get input values
+            const tubeFlow = parseFloat(document.getElementById("kern_tube_flow").value);
+            const shellFlow = parseFloat(document.getElementById("kern_shell_flow").value);
+            const tubeTin = parseFloat(document.getElementById("kern_tube_tin").value);
+            const tubeTout = parseFloat(document.getElementById("kern_tube_tout").value);
+            const shellTin = parseFloat(document.getElementById("kern_shell_tin").value);
+            const shellTout = parseFloat(document.getElementById("kern_shell_tout").value);
+            const tubeRho = parseFloat(document.getElementById("kern_tube_rho").value);
+            const shellRho = parseFloat(document.getElementById("kern_shell_rho").value);
+            const tubeMu = parseFloat(document.getElementById("kern_tube_mu").value);
+            const shellMu = parseFloat(document.getElementById("kern_shell_mu").value);
+            const tubeCp = parseFloat(document.getElementById("kern_tube_cp").value);
+            const shellCp = parseFloat(document.getElementById("kern_shell_cp").value);
+            const tubeK = parseFloat(document.getElementById("kern_tube_k").value);
+            const shellK = parseFloat(document.getElementById("kern_shell_k").value);
+            const tubeOD = parseFloat(document.getElementById("kern_tube_od").value) / 1000; // convert to m
+            const tubeID = parseFloat(document.getElementById("kern_tube_id").value) / 1000; // convert to m
+            const tubeLength = parseFloat(document.getElementById("kern_tube_length").value);
+            const tubePitch = parseFloat(document.getElementById("kern_tube_pitch").value) / 1000; // convert to m
+            const shellDia = parseFloat(document.getElementById("kern_shell_dia").value) / 1000; // convert to m
+            const baffleSpacing = parseFloat(document.getElementById("kern_baffle_spacing").value) / 1000; // convert to m
+            const passes = parseInt(document.getElementById("kern_passes").value);
+
+            // Calculate heat transfer
+            const Qtube = tubeFlow * tubeCp * (tubeTout - tubeTin);
+            const Qshell = shellFlow * shellCp * (shellTin - shellTout);
+            const Qavg = (Qtube + Qshell) / 2;
+
+            // Calculate LMTD
+            const dT1 = shellTin - tubeTout;
+            const dT2 = shellTout - tubeTin;
+            const LMTD = (dT1 - dT2) / Math.log(dT1 / dT2);
+
+            // Tube side calculations
+            const tubeArea = Math.PI * tubeID * tubeID / 4;
+            const tubeVelocity = tubeFlow / (tubeRho * tubeArea);
+            const tubeRe = tubeRho * tubeVelocity * tubeID / tubeMu;
+            const tubePr = tubeCp * tubeMu / tubeK;
+            const tubeNu = 0.023 * Math.pow(tubeRe, 0.8) * Math.pow(tubePr, 0.4);
+            const tubeH = tubeNu * tubeK / tubeID;
+
+            // Shell side calculations
+            const shellArea = (tubePitch - tubeOD) * shellDia * baffleSpacing / tubePitch;
+            const shellVelocity = shellFlow / (shellRho * shellArea);
+            const shellDe = 4 * (Math.pow(tubePitch, 2) - Math.PI * Math.pow(tubeOD, 2) / 4) / (Math.PI * tubeOD);
+            const shellRe = shellRho * shellVelocity * shellDe / shellMu;
+            const shellPr = shellCp * shellMu / shellK;
+            const shellNu = 0.36 * Math.pow(shellRe, 0.55) * Math.pow(shellPr, 1/3);
+            const shellH = shellNu * shellK / shellDe;
+
+            // Overall heat transfer coefficient
+            const U = 1 / (1/shellH + 1/tubeH); // Simplified, ignoring fouling and wall resistance
+
+            // Required area
+            const areaRequired = Qavg / (U * LMTD);
+
+            // Store results
+            calculationResults.kern = {
+                Qavg, LMTD, U, areaRequired, tubeH, shellH, tubeRe, shellRe
+            };
+
+            // Display results
+            document.getElementById('kernResults').style.display = 'block';
+            document.getElementById('kernResults').innerHTML = `
+                <strong>Kern Method Results:</strong><br><br>
+                Heat Transfer Rate: ${Qavg.toFixed(2)} W<br>
+                LMTD: ${LMTD.toFixed(2)} °C<br>
+                Tube Side HTC: ${tubeH.toFixed(2)} W/m²·K<br>
+                Shell Side HTC: ${shellH.toFixed(2)} W/m²·K<br>
+                Overall HTC: ${U.toFixed(2)} W/m²·K<br>
+                Required Area: ${areaRequired.toFixed(2)} m²<br>
+                Tube Side Re: ${tubeRe.toFixed(0)}<br>
+                Shell Side Re: ${shellRe.toFixed(0)}
+            `;
+
+            // Plot heat transfer coefficients
+            const data = [{
+                y: ['Tube Side', 'Shell Side', 'Overall'],
+                x: [tubeH, shellH, U],
+                type: 'bar',
+                orientation: 'h',
+                marker: {color: ['blue', 'red', 'green']}
+            }];
+            
+            const layout = {
+                title: 'Heat Transfer Coefficients',
+                xaxis: {title: 'HTC (W/m²·K)'}
+            };
+            
+            Plotly.newPlot('kernPlot', data, layout);
+        }
+
+        // Fin Analysis Calculation
+        function calculateFin() {
+            const Tbase = parseFloat(document.getElementById("fin_Tbase").value);
+            const Tamb = parseFloat(document.getElementById("fin_Tamb").value);
+            const length = parseFloat(document.getElementById("fin_length").value);
+            const thickness = parseFloat(document.getElementById("fin_thickness").value);
+            const width = parseFloat(document.getElementById("fin_width").value);
+            const k = parseFloat(document.getElementById("fin_k").value);
+            const h = parseFloat(document.getElementById("fin_h").value);
+            const finType = document.getElementById("fin_type").value;
+
+            // Calculate fin parameters based on type
+            let perimeter, areaCross, mL, efficiency, effectiveness, heatTransfer;
+
+            if (finType === "rectangular") {
+                perimeter = 2 * (width + thickness);
+                areaCross = width * thickness;
+                mL = Math.sqrt(h * perimeter / (k * areaCross)) * length;
+                efficiency = Math.tanh(mL) / mL;
+                heatTransfer = efficiency * h * perimeter * length * (Tbase - Tamb);
+                
+                // Base area without fin
+                const baseArea = width * thickness;
+                const baseHeatTransfer = h * baseArea * (Tbase - Tamb);
+                effectiveness = heatTransfer / baseHeatTransfer;
+            } 
+            else if (finType === "triangular") {
+                // Approximation for triangular fin
+                perimeter = 2 * Math.sqrt(Math.pow(width/2, 2) + Math.pow(length, 2)) + width;
+                areaCross = width * thickness / 2;
+                mL = Math.sqrt(2 * h / (k * thickness)) * length;
+                efficiency = Math.tanh(mL) / mL;
+                heatTransfer = efficiency * h * perimeter * length * (Tbase - Tamb) / 2;
+                
+                // Base area without fin
+                const baseArea = width * thickness;
+                const baseHeatTransfer = h * baseArea * (Tbase - Tamb);
+                effectiveness = heatTransfer / baseHeatTransfer;
+            } 
+            else { // pin fin
+                perimeter = Math.PI * thickness;
+                areaCross = Math.PI * Math.pow(thickness/2, 2);
+                mL = Math.sqrt(h * perimeter / (k * areaCross)) * length;
+                efficiency = Math.tanh(mL) / mL;
+                heatTransfer = efficiency * h * perimeter * length * (Tbase - Tamb);
+                
+                // Base area without fin
+                const baseArea = Math.PI * Math.pow(thickness/2, 2);
+                const baseHeatTransfer = h * baseArea * (Tbase - Tamb);
+                effectiveness = heatTransfer / baseHeatTransfer;
+            }
+
+            // Store results
+            calculationResults.fin = {
+                efficiency, effectiveness, heatTransfer, mL
+            };
+
+            // Display results
+            document.getElementById('finResults').style.display = 'block';
+            document.getElementById('finResults').innerHTML = `
+                <strong>Fin Analysis Results:</strong><br><br>
+                Fin Efficiency: ${(efficiency * 100).toFixed(2)}%<br>
+                Fin Effectiveness: ${effectiveness.toFixed(2)}<br>
+                Heat Transfer Rate: ${heatTransfer.toFixed(2)} W<br>
+                mL parameter: ${mL.toFixed(4)}
+            `;
+
+            // Plot temperature distribution along fin
+            const x = Array.from({length: 20}, (_, i) => i * length / 19);
+            const temperature = x.map(pos => {
+                const currentML = mL * (pos / length);
+                return Tamb + (Tbase - Tamb) * (Math.cosh(mL * (1 - pos/length)) / Math.cosh(mL));
+            });
+            
+            const data = [{
+                x: x,
+                y: temperature,
+                mode: 'lines+markers',
+                name: 'Temperature Distribution',
+                line: {color: 'red'}
+            }];
+            
+            const layout = {
+                title: 'Temperature Distribution Along Fin',
+                xaxis: {title: 'Distance from Base (m)'},
+                yaxis: {title: 'Temperature (°C)'}
+            };
+            
+            Plotly.newPlot('finPlot', data, layout);
+        }
+
+        // Generate Performance Curves
+        function generatePerformance() {
+            // Effectiveness-NTU curves for different configurations
+            const ntuValues = Array.from({length: 50}, (_, i) => i * 0.2);
+            const crValues = [0.2, 0.5, 0.8, 1.0];
+            
+            const parallelData = crValues.map(cr => {
+                return {
+                    x: ntuValues,
+                    y: ntuValues.map(ntu => (1 - Math.exp(-ntu * (1 + cr))) / (1 + cr)),
+                    mode: 'lines',
+                    name: `Parallel, Cr=${cr}`
+                };
+            });
+            
+            const counterData = crValues.map(cr => {
+                if (cr < 1) {
+                    return {
+                        x: ntuValues,
+                        y: ntuValues.map(ntu => (1 - Math.exp(-ntu * (1 - cr))) / (1 - cr * Math.exp(-ntu * (1 - cr)))),
+                        mode: 'lines',
+                        name: `Counter, Cr=${cr}`
+                    };
+                } else {
+                    return {
+                        x: ntuValues,
+                        y: ntuValues.map(ntu => ntu / (1 + ntu)),
+                        mode: 'lines',
+                        name: `Counter, Cr=${cr}`
+                    };
+                }
+            });
+            
+            Plotly.newPlot('performancePlot1', parallelData, {
+                title: 'Effectiveness-NTU: Parallel Flow',
+                xaxis: {title: 'NTU'},
+                yaxis: {title: 'Effectiveness', range: [0, 1]}
+            });
+            
+            Plotly.newPlot('performancePlot2', counterData, {
+                title: 'Effectiveness-NTU: Counter Flow',
+                xaxis: {title: 'NTU'},
+                yaxis: {title: 'Effectiveness', range: [0, 1]}
+            });
+            
+            // Fin efficiency curves
+            const mLValues = Array.from({length: 50}, (_, i) => i * 0.2);
+            const efficiencyValues = mLValues.map(mL => Math.tanh(mL) / mL);
+            
+            Plotly.newPlot('performancePlot3', [{
+                x: mLValues,
+                y: efficiencyValues,
+                mode: 'lines',
+                name: 'Fin Efficiency',
+                line: {color: 'blue'}
+            }], {
+                title: 'Fin Efficiency vs mL',
+                xaxis: {title: 'mL'},
+                yaxis: {title: 'Efficiency', range: [0, 1]}
+            });
+            
+            // Correction factor curves
+            const pValues = Array.from({length: 20}, (_, i) => i * 0.05);
+            const rValues = [0.5, 1.0, 2.0, 4.0];
+            
+            const correctionData = rValues.map(r => {
+                return {
+                    x: pValues,
+                    y: pValues.map(p => calculateCorrectionFactor(p, r)),
+                    mode: 'lines',
+                    name: `R=${r}`
+                };
+            });
+            
+            Plotly.newPlot('performancePlot4', correctionData, {
+                title: 'Correction Factor F for Shell & Tube',
+                xaxis: {title: 'P'},
+                yaxis: {title: 'F', range: [0.5, 1]}
+            });
+            
+            document.getElementById('performanceResults').style.display = 'block';
+            document.getElementById('performanceResults').innerHTML = `
+                <strong>Performance Analysis Complete</strong><br>
+                Generated effectiveness-NTU curves, fin efficiency, and correction factors.
+            `;
+        }
+
+        // Initialize with overview plot
+        window.onload = function() {
+            plotOverviewExample();
+        };
+    </script>
+</body>
+</html>
+
+
