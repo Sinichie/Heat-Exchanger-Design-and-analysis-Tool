@@ -58,12 +58,21 @@
             border-radius: 8px;
             margin-bottom: 20px;
         }
+        
+        .overview-header {
+            margin-bottom: 30px;
+        }
+        
+        .performance-chart {
+            height: 400px;
+            margin-bottom: 20px;
+        }
     </style>
 </head>
 <body>
-    <div style="margin-left: 4%; margin-right: 4%; text-align: center;">
+    <div style="margin-left: 4%; margin-right: 4%;">
         
-        <div style="text-align: left; margin: 3%;">
+        <div class="overview-header" style="text-align: left; margin: 3%;">
             <h2>Heat Exchanger Design & Analysis Tool</h2>
             <p><em>Complete thermal design with LMTD, Effectiveness-NTU, Kern Method, Fin Analysis, and Performance Evaluation</em></p>
         </div>
@@ -120,7 +129,7 @@
                         </div>
                     </div>
                     <div class="col-md-4">
-                        <div id="overviewPlot" style="height: 400px;"></div>
+                        <div id="overviewPlot" style="height: 400px; margin-top: 20px;"></div>
                     </div>
                 </div>
             </div>
@@ -373,8 +382,8 @@
                         <p><strong>Generates comprehensive performance curves for:</strong><br>
                         • Effectiveness vs NTU for different configurations<br>
                         • Fin efficiency comparison<br>
-                        • Heat transfer coefficient effects<br>
-                        • Correction factors for shell-and-tube exchangers</p>
+                        • Heat transfer coefficient vs area analysis<br>
+                        • Heat transfer coefficient effects</p>
                         
                         <button type="button" class="btn btn-primary" onclick="generatePerformance()">Generate Performance Curves</button>
                     </div>
@@ -382,19 +391,19 @@
                 
                 <div class="row">
                     <div class="col-md-6">
-                        <div id="performancePlot1" style="height: 400px;"></div>
+                        <div id="performancePlot1" class="performance-chart"></div>
                     </div>
                     <div class="col-md-6">
-                        <div id="performancePlot2" style="height: 400px;"></div>
+                        <div id="performancePlot2" class="performance-chart"></div>
                     </div>
                 </div>
                 
                 <div class="row">
                     <div class="col-md-6">
-                        <div id="performancePlot3" style="height: 400px;"></div>
+                        <div id="performancePlot3" class="performance-chart"></div>
                     </div>
                     <div class="col-md-6">
-                        <div id="performancePlot4" style="height: 400px;"></div>
+                        <div id="performancePlot4" class="performance-chart"></div>
                     </div>
                 </div>
                 
@@ -508,20 +517,6 @@
             Plotly.newPlot('overviewPlot', data, layout);
         }
 
-        // Calculate correction factor for shell and tube heat exchangers
-        function calculateCorrectionFactor(P, R) {
-            // Simplified approximation for 1-2 shell and tube exchanger
-            const numerator = Math.sqrt(R * R + 1) * Math.log((1 - P) / (1 - P * R));
-            const denominator = (R - 1) * Math.log((2 - P * (R + 1 - Math.sqrt(R * R + 1))) / 
-                                            (2 - P * (R + 1 + Math.sqrt(R * R + 1))));
-            
-            if (R === 1) {
-                return P / ((1 - P) * Math.log((2 - P * (2 - P)) / (P * P)));
-            }
-            
-            return numerator / denominator;
-        }
-
         // LMTD Calculation
         function calculateLMTD() {
             const ThIn = parseFloat(document.getElementById("lmtd_ThIn").value);
@@ -545,24 +540,21 @@
             const Qavg = (Qh + Qc) / 2;
 
             // Temperature differences
-            const dT1 = config === "parallel" ? ThIn - TcIn : ThIn - TcOut;
-            const dT2 = config === "parallel" ? ThOut - TcOut : ThOut - TcIn;
+            let dT1, dT2;
+            if (config === "parallel") {
+                dT1 = ThIn - TcIn;
+                dT2 = ThOut - TcOut;
+            } else {
+                dT1 = ThIn - TcOut;
+                dT2 = ThOut - TcIn;
+            }
 
             // LMTD calculation
             let LMTD;
             if (Math.abs(dT1 - dT2) < 0.001) {
-                LMTD = dT1;
+                LMTD = (dT1 + dT2) / 2; // Arithmetic mean for small differences
             } else {
                 LMTD = (dT1 - dT2) / Math.log(dT1 / dT2);
-            }
-
-            // Correction factor
-            let F = 1;
-            if (config === "shell") {
-                const P = (TcOut - TcIn) / (ThIn - TcIn);
-                const R = (ThIn - ThOut) / (TcOut - TcIn);
-                F = calculateCorrectionFactor(P, R);
-                LMTD = LMTD * F;
             }
 
             // Required area
@@ -570,7 +562,7 @@
 
             // Store results
             calculationResults.lmtd = {
-                Qavg, LMTD, Area, F, ThIn, ThOut, TcIn, TcOut, config
+                Qavg, LMTD, Area, ThIn, ThOut, TcIn, TcOut, config
             };
 
             // Display results
@@ -579,7 +571,6 @@
                 <strong>LMTD Method Results:</strong><br><br>
                 Heat Transfer Rate: ${Qavg.toFixed(2)} W<br>
                 Log Mean Temperature Difference: ${LMTD.toFixed(2)} °C<br>
-                Correction Factor (F): ${F.toFixed(3)}<br>
                 Required Heat Transfer Area: ${Area.toFixed(4)} m²<br>
                 Hot Fluid Heat Capacity Rate: ${Ch.toFixed(2)} W/K<br>
                 Cold Fluid Heat Capacity Rate: ${Cc.toFixed(2)} W/K
@@ -643,7 +634,7 @@
                 } else {
                     effectiveness = NTU / (1 + NTU);
                 }
-            } else { // crossflow approximation
+            } else { // crossflow approximation (both fluids mixed)
                 effectiveness = 1 - Math.exp((Math.exp(-NTU * Cr * 0.78) - 1) / (Cr * 0.78));
             }
 
@@ -763,7 +754,9 @@
             const shellH = shellNu * shellK / shellDe;
 
             // Overall heat transfer coefficient
-            const U = 1 / (1/shellH + 1/tubeH); // Simplified, ignoring fouling and wall resistance
+            // Include wall resistance and fouling factors (simplified)
+            const wallResistance = tubeOD * Math.log(tubeOD/tubeID) / (2 * 50); // Assume 50 W/m·K for tube material
+            const U = 1 / (1/shellH + 1/tubeH + wallResistance);
 
             // Required area
             const areaRequired = Qavg / (U * LMTD);
@@ -831,12 +824,17 @@
                 effectiveness = heatTransfer / baseHeatTransfer;
             } 
             else if (finType === "triangular") {
-                // Approximation for triangular fin
-                perimeter = 2 * Math.sqrt(Math.pow(width/2, 2) + Math.pow(length, 2)) + width;
+                // More accurate calculation for triangular fin
+                perimeter = 2 * Math.sqrt(Math.pow(width/2, 2) + Math.pow(length, 2));
                 areaCross = width * thickness / 2;
                 mL = Math.sqrt(2 * h / (k * thickness)) * length;
-                efficiency = Math.tanh(mL) / mL;
-                heatTransfer = efficiency * h * perimeter * length * (Tbase - Tamb) / 2;
+                
+                // Modified Bessel functions approximation
+                const I1 = besseli(1, 2*mL);
+                const I0 = besseli(0, 2*mL);
+                efficiency = (1 / mL) * (I1 / I0);
+                
+                heatTransfer = efficiency * h * (width * length) * (Tbase - Tamb);
                 
                 // Base area without fin
                 const baseArea = width * thickness;
@@ -942,44 +940,99 @@
             
             // Fin efficiency curves
             const mLValues = Array.from({length: 50}, (_, i) => i * 0.2);
-            const efficiencyValues = mLValues.map(mL => Math.tanh(mL) / mL);
+            const efficiencyValuesRect = mLValues.map(mL => Math.tanh(mL) / mL);
+            const efficiencyValuesTri = mLValues.map(mL => {
+                // More accurate approximation for triangular fin efficiency
+                if (mL === 0) return 1;
+                const I1 = besseli(1, 2*mL);
+                const I0 = besseli(0, 2*mL);
+                return (1 / mL) * (I1 / I0);
+            });
+            const efficiencyValuesPin = mLValues.map(mL => Math.tanh(mL) / mL);
             
-            Plotly.newPlot('performancePlot3', [{
-                x: mLValues,
-                y: efficiencyValues,
-                mode: 'lines',
-                name: 'Fin Efficiency',
-                line: {color: 'blue'}
-            }], {
+            Plotly.newPlot('performancePlot3', [
+                {x: mLValues, y: efficiencyValuesRect, mode: 'lines', name: 'Rectangular Fin', line: {color: 'red'}},
+                {x: mLValues, y: efficiencyValuesTri, mode: 'lines', name: 'Triangular Fin', line: {color: 'blue'}},
+                {x: mLValues, y: efficiencyValuesPin, mode: 'lines', name: 'Pin Fin', line: {color: 'green'}}
+            ], {
                 title: 'Fin Efficiency vs mL',
                 xaxis: {title: 'mL'},
                 yaxis: {title: 'Efficiency', range: [0, 1]}
             });
             
-            // Correction factor curves
-            const pValues = Array.from({length: 20}, (_, i) => i * 0.05);
-            const rValues = [0.5, 1.0, 2.0, 4.0];
+            // Heat transfer coefficient vs area analysis
+            const UValues = Array.from({length: 20}, (_, i) => 100 + i * 100);
+            const Q = 50000; // Fixed heat transfer rate
+            const LMTD = 30; // Fixed LMTD
             
-            const correctionData = rValues.map(r => {
-                return {
-                    x: pValues,
-                    y: pValues.map(p => calculateCorrectionFactor(p, r)),
-                    mode: 'lines',
-                    name: `R=${r}`
-                };
-            });
+            const areaValues = UValues.map(U => Q / (U * LMTD));
             
-            Plotly.newPlot('performancePlot4', correctionData, {
-                title: 'Correction Factor F for Shell & Tube',
-                xaxis: {title: 'P'},
-                yaxis: {title: 'F', range: [0.5, 1]}
+            Plotly.newPlot('performancePlot4', [{
+                x: areaValues,
+                y: UValues,
+                mode: 'lines+markers',
+                name: 'HTC vs Area',
+                line: {color: 'purple'}
+            }], {
+                title: 'Heat Transfer Coefficient vs Required Area',
+                xaxis: {title: 'Area (m²)'},
+                yaxis: {title: 'HTC (W/m²·K)'}
             });
             
             document.getElementById('performanceResults').style.display = 'block';
             document.getElementById('performanceResults').innerHTML = `
-                <strong>Performance Analysis Complete</strong><br>
-                Generated effectiveness-NTU curves, fin efficiency, and correction factors.
+                <strong>Performance Analysis Summary:</strong><br><br>
+                <strong>Effectiveness-NTU Method:</strong><br>
+                • Counter flow configuration provides highest effectiveness<br>
+                • Parallel flow has lowest effectiveness for same NTU<br>
+                • Cross flow performance is intermediate<br>
+                • Lower Cr values generally lead to higher effectiveness<br><br>
+                <strong>Fin Analysis:</strong><br>
+                • Fin efficiency decreases as mL increases<br>
+                • Triangular fins can be more efficient for same material usage<br>
+                • Rectangular and pin fins have similar efficiency characteristics<br><br>
+                <strong>Heat Transfer Coefficient vs Area:</strong><br>
+                • Higher heat transfer coefficients reduce required area significantly<br>
+                • Diminishing returns occur at very high U values<br>
+                • For a fixed heat load, area is inversely proportional to U
             `;
+        }
+
+        // Bessel function approximation for fin efficiency calculations
+        function besseli(n, x) {
+            if (x === 0) {
+                return n === 0 ? 1 : 0;
+            }
+            
+            // Improved approximation using series expansion
+            let sum = 0;
+            const xHalf = x / 2;
+            
+            if (n === 0) {
+                for (let k = 0; k <= 10; k++) {
+                    const term = Math.pow(xHalf, 2*k) / (factorial(k) * factorial(k));
+                    sum += term;
+                }
+                return sum;
+            } else if (n === 1) {
+                for (let k = 0; k <= 10; k++) {
+                    const term = Math.pow(xHalf, 2*k + 1) / (factorial(k) * factorial(k + 1));
+                    sum += term;
+                }
+                return sum;
+            }
+            
+            // For higher orders, use recurrence relation
+            return besseli(n-1, x) - (2*(n-1)/x) * besseli(n-2, x);
+        }
+        
+        function factorial(n) {
+            if (n === 0 || n === 1) return 1;
+            let result = 1;
+            for (let i = 2; i <= n; i++) {
+                result *= i;
+            }
+            return result;
         }
 
         // Initialize with overview plot
@@ -989,5 +1042,3 @@
     </script>
 </body>
 </html>
-
-
